@@ -2,7 +2,7 @@ import time
 import json
 from adbutils import adb
 
-d = adb.device(serial="emulator-5554")
+d = adb.device(serial="localhost:5555")
 
 def screenshot(path):
     remote_tmp_path = "/data/local/tmp/screenshot.png"
@@ -16,7 +16,7 @@ def on_click(data):
     print(data)
     screenshot("r_click_"+str(data["timestamp"])+".png")
     d.click(data["x"],data["y"])
-    
+
 
 # @sio.on('KeyInput')
 def on_input(data):
@@ -36,8 +36,8 @@ def on_swipe(data):
     screenshot("r_swipe_"+str(data["end"]["timestamp"])+".png")
     d.swipe(data["start"]["x"],data["start"]["y"],data["end"]["x"],data["end"]["y"],(data["end"]["timestamp"]-data["start"]["timestamp"])/1000)
 
-def read_file():
-	with open('myjsonfile.json') as f:
+def read_file(filename):
+	with open(filename) as f:
 		data = json.load(f)
 		for action in data:
 			print(action)
@@ -53,7 +53,4 @@ def read_file():
 			if(action["action"] == "swipe"):
 				on_swipe(action["params"])
 				time.sleep(1.5)
-			
 	f.close()
-
-read_file()	

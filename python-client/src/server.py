@@ -3,7 +3,8 @@ import time
 from adbutils import adb
 from aiohttp import web
 import json
-
+from repeat import read_file
+import base64
 sio = socketio.AsyncServer( cors_allowed_origins='*')
 app = web.Application()
 sio.attach(app)
@@ -49,20 +50,25 @@ def on_touch_move(sid,data):
     paramEnd = data
 
 @sio.on('TouchUpMessage')
-def on_touch_up(sid,data):
+async def on_touch_up(sid,data):
     global action
     global actions
     global paramStart
     global paramEnd
     if (action=="Click"):
-        screenshot("click_"+str(paramStart["timestamp"])+".png")
+        screenshot("test/click_"+str(paramStart["timestamp"])+".png")
         d.click(paramStart["x"],paramStart["y"])
         actions.append({"action":"click","params": paramStart})
+        with open("test/click_"+str(paramStart["timestamp"])+".png", "rb") as image_file:
+            await sio.emit('Clicked',{"action":"click","params": paramStart,"image":base64.b64encode(image_file.read()).decode('utf-8')})
+
     else:
         data = {"start": paramStart, "end": paramEnd}
-        screenshot("swipe_"+str(data["end"]["timestamp"])+".png")
+        screenshot("test/swipe_"+str(data["end"]["timestamp"])+".png")
         d.swipe(data["start"]["x"],data["start"]["y"],data["end"]["x"],data["end"]["y"],(data["end"]["timestamp"]-data["start"]["timestamp"])/1000)
         actions.append({"action":"swipe","params":data})
+        with open("test/swipe_"+str(paramEnd["timestamp"])+".png", "rb") as image_file:
+            await sio.emit('Swiped',{"action":"swipe","params": data,"image":base64.b64encode(image_file.read()).decode('utf-8')})
 
 @sio.on('KeyEventMessage')
 def on_key_event(sid,data):
@@ -70,7 +76,7 @@ def on_key_event(sid,data):
     keycode = asciiToAdb[data["keycode"]]
     print(keycode)
     d.keyevent(keycode)
-    actions.append({"action":"keyEvent","params": newMsg})
+    actions.append({"action":"keyEvent","params": data})
 
 @sio.on('KeyInputMessage')
 def on_key_input(sid,data):
@@ -88,17 +94,21 @@ def on_stop(sid,data):
     global actions
     # r.stop()
     print("Stop")
-    with open('actions.json', 'w') as fout:
+    with open('emulator_create.json', 'w') as fout:
         json.dump(actions, fout)
+    actions = []
 
-    
+@sio.on('Repeat')
+def on_stop(sid,data):
+    print("Repeat")
+    read_file('emulator_create.json')
 
 # @sio.on('Click')
 # def on_click(sid,data):
 #     print(data)
 #     screenshot("click_"+str(data["timestamp"])+".png")
 #     d.click(data["x"],data["y"])
-    
+
 
 # @sio.on('KeyInput')
 # def on_click(sid,data):
